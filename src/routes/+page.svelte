@@ -1,9 +1,12 @@
 <script lang="ts">
 	import CircuitCanvas from '$lib/components/CircuitCanvas.svelte';
+	import PhysicsPanel from '$lib/components/PhysicsPanel.svelte';
+	import type { CompType } from '$lib/data/physics.js';
 
 	type Tool = 'select' | 'resistor' | 'capacitor' | 'inductor' | 'voltage' | 'ground';
 
 	let tool = $state<Tool>('select');
+	let selectedType = $state<CompType | null>(null);
 
 	const tools: { id: Tool; label: string }[] = [
 		{ id: 'select', label: 'Select' },
@@ -52,8 +55,9 @@
 	</aside>
 
 	<main>
-		<CircuitCanvas {tool} />
+		<CircuitCanvas {tool} onselect={(t) => (selectedType = t)} />
 	</main>
+	<PhysicsPanel {selectedType} />
 </div>
 
 <style>

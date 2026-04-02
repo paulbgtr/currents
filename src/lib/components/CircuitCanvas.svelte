@@ -1,5 +1,6 @@
 <script lang="ts">
-	type CompType = 'resistor' | 'capacitor' | 'inductor' | 'voltage' | 'ground';
+	import { DEFAULT_DISPLAY } from '$lib/data/physics.js';
+	import type { CompType } from '$lib/data/physics.js';
 
 	interface Comp {
 		id: string;
@@ -16,7 +17,10 @@
 		to: { cid: string; ti: number };
 	}
 
-	let { tool }: { tool: string } = $props();
+	let {
+		tool,
+		onselect
+	}: { tool: string; onselect?: (type: CompType | null) => void } = $props();
 
 	const GRID = 20;
 	let uid = 0;
@@ -180,6 +184,12 @@
 		}
 	}
 
+	// Notify parent when selection changes
+	$effect(() => {
+		const comp = comps.find((c) => c.id === selected);
+		onselect?.(comp?.type ?? null);
+	});
+
 	let pendingWireStart = $derived.by(() => {
 		if (!wireFrom) return null;
 		const c = comps.find((c) => c.id === wireFrom!.cid);
@@ -211,22 +221,38 @@
 		<pattern id="dotgrid" width={GRID} height={GRID} patternUnits="userSpaceOnUse">
 			<circle cx={GRID / 2} cy={GRID / 2} r="1" fill="#1e3a5f" />
 		</pattern>
+		<filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
+			<feGaussianBlur in="SourceGraphic" stdDeviation="2.5" result="blur" />
+			<feMerge>
+				<feMergeNode in="blur" />
+				<feMergeNode in="SourceGraphic" />
+			</feMerge>
+		</filter>
 	</defs>
 	<rect width="100%" height="100%" fill="#0a1628" />
 	<rect width="100%" height="100%" fill="url(#dotgrid)" />
 
-	<!-- Committed wires -->
+	<!-- Committed wires + current flow animation -->
 	{#each wires as w (w.id)}
 		{@const c = wireCoords(w)}
 		{#if c}
 			<path
+				id={w.id}
 				d={routePath(c.x1, c.y1, c.x2, c.y2)}
 				fill="none"
-				stroke="#475569"
+				stroke="#2d5a8e"
 				stroke-width="2"
 				stroke-linecap="round"
 				stroke-linejoin="round"
 			/>
+			<!-- Three evenly-staggered current-flow dots -->
+			{#each [0, -0.67, -1.33] as offset}
+				<circle r="2.5" fill="#60a5fa" opacity="0.85" pointer-events="none" filter="url(#glow)">
+					<animateMotion dur="2s" begin="{offset}s" repeatCount="indefinite">
+						<mpath href="#{w.id}" />
+					</animateMotion>
+				</circle>
+			{/each}
 		{/if}
 	{/each}
 
@@ -336,6 +362,19 @@
 			>
 				{c.label}
 			</text>
+			<!-- Value -->
+			{#if DEFAULT_DISPLAY[c.type]}
+				<text
+					y={c.type === 'ground' ? 44 : -11}
+					text-anchor="middle"
+					font-size="9"
+					fill="#1e3a5f"
+					font-family="monospace"
+					pointer-events="none"
+				>
+					{DEFAULT_DISPLAY[c.type]}
+				</text>
+			{/if}
 		</g>
 	{/each}
 
